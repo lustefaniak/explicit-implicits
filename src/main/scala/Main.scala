@@ -9,15 +9,18 @@ object Main extends App {
 
   case class H2(otherName: String) extends H
 
-  trait Writer[T] {
+  //case class H3(absolutellyOtherName:Long) extends H
+
+  trait JsonFormat[T] {
     def write(t: T): String
+    //def read(s:String): T
   }
 
-  implicit val h1Writer = new Writer[H1] {
+  implicit val h1Writer = new JsonFormat[H1] {
     override def write(t: H1): String = t.name
   }
 
-  implicit val h2Writer = new Writer[H2] {
+  implicit val h2Writer = new JsonFormat[H2] {
     override def write(t: H2): String = t.otherName
   }
 
@@ -25,9 +28,14 @@ object Main extends App {
   val h2 = H2("otherName")
 
 
-  val writer: Writer[H] = deriveImplicits[H, Writer]
+  val jsonFormat: JsonFormat[H] = deriveImplicits[H, JsonFormat]
 
-  assert(writer.write(h1) == h1.name, "Writer should use implicit h1Writer")
-  assert(writer.write(h2) == h2.otherName, "Writer should use implicit h2Writer")
+  assert(jsonFormat.write(h1) == h1.name, "Writer should use implicit h1Writer")
+  assert(jsonFormat.write(h2) == h2.otherName, "Writer should use implicit h2Writer")
+
+  val hs: List[H] = List(h1,h2)
+  val labels = hs.map(jsonFormat.write)
+
+  assert(labels == List(h1.name, h2.otherName), "Writer should use both implicit writers")
 
 }

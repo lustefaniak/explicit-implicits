@@ -17,9 +17,11 @@ lazy val basicSettings = Seq(
 lazy val main = Project("main", file("."))
   .settings(basicSettings)
   .dependsOn(macroSub)
+  .aggregate(macroSub)
 
 lazy val macroSub = Project("macro", file("macro"))
   .settings(basicSettings)
   .settings(
-    libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _)
+    libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _),
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.0-M15" % "test"
   )
