@@ -1,8 +1,9 @@
+= explicit-implicits
 
 
-object Main extends App {
-
+```
   import explicitImplicits._
+  
   sealed trait H
 
   case class H1(name: String) extends H
@@ -29,5 +30,4 @@ object Main extends App {
 
   assert(writer.write(h1) == h1.name, "Writer should use implicit h1Writer")
   assert(writer.write(h2) == h2.otherName, "Writer should use implicit h2Writer")
-
-}
+```  
