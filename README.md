@@ -1,5 +1,4 @@
-= explicit-implicits
-
+# explicit-implicits
 
 ```
   import explicitImplicits._
