@@ -5,7 +5,11 @@ lazy val main = Project("explicit-implicits", file("."))
   .enablePlugins(GitVersioning)
   .disablePlugins(SbtScalariform)
   .settings(SbtScalariform.defaultScalariformSettings)
-  .settings(organization := "com.lustefaniak.explicitimplicits")
+  .settings(
+    organization := "com.lustefaniak.explicitimplicits",
+    licenses +=
+      ("MIT", url("http://opensource.org/licenses/MIT"))
+  )
   .settings(
     scalaVersion := "2.11.8",
     scalacOptions += "-encoding",
