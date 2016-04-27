@@ -1,5 +1,6 @@
 # explicit-implicits
 [![Build Status](https://travis-ci.org/lustefaniak/explicit-implicits.svg?branch=master)](https://travis-ci.org/lustefaniak/explicit-implicits)
+[ ![Download](https://api.bintray.com/packages/lustefaniak/maven/explicit-implicits/images/download.svg) ](https://bintray.com/lustefaniak/maven/explicit-implicits/_latestVersion)
 
 Macro to turn multiple implicits of type `M[T1 <: T]` into single `M[T]` when `T` is sealed.
 
@@ -14,15 +15,6 @@ trait M[T] {
 ```
 
 Macro would generate for you pattern matches using type of that discriminator parameter, and delegate execution to one of available in scope implicits `M[T1 <: T]`.
-
-## Getting Started
-  ```scala
-  resolvers += Resolver.bintrayRepo("lustefaniak", "maven")
-  
-  libraryDependencies += "com.lustefaniak.explicitimplicits" %% "explicit-implicits" % "0.1.0"
-  ```
-  
- Or use [demo project](https://github.com/lustefaniak/explicit-implicits-demo)
   
 ## Example Usage
 ```scala
@@ -85,3 +77,14 @@ object Main extends App {
 
 }
 ```
+
+## Getting Started
+  ```scala
+  resolvers += Resolver.bintrayRepo("lustefaniak", "maven")
+  
+  libraryDependencies += "com.lustefaniak.explicitimplicits" %% "explicit-implicits" % "0.1.1"
+  ```
+  
+ Or use [demo project](https://github.com/lustefaniak/explicit-implicits-demo)
+ 
+ 
