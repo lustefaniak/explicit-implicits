@@ -1,7 +1,7 @@
 
 import scala.annotation.compileTimeOnly
 import scala.language.experimental.macros
-import scala.reflect.macros.whitebox._
+import scala.reflect.macros.blackbox.Context
 
 package object explicitImplicits {
   def deriveImplicits[I, M[_]]: M[I] = macro deriveImplicits_impl[I, M]
@@ -70,85 +70,53 @@ package object explicitImplicits {
       }
     }
 
-    val itemType = c.weakTypeOf[I].typeSymbol.asClass
+    val innerType = c.weakTypeOf[I].typeSymbol.asClass
     val wrapperType = c.weakTypeOf[M[I]].typeSymbol.asClass
-    val resultType = tq"$wrapperType[$itemType]"
+    val typedWrapper = tq"$wrapperType[$innerType]"
 
     val allSealed = childrenFor[I]
-    val methodsToImplement = mtt.tpe.members.filter(m => m.isMethod && m.isAbstract).map { method =>
-      method.asMethod
-    }
+    val methodsToImplement = mtt.tpe.members.filter(m => m.isMethod && m.isAbstract).map(_.asMethod)
 
-    val invalidMethods = methodsToImplement.filterNot { m =>
-      val applied = m.typeSignatureIn(computeType(resultType))
-      val genericParameters = findParametersOfType(applied.paramLists, itt.tpe)
-      genericParameters.size == 1
-    }
+    val newMethods = methodsToImplement.map { methodToAdd =>
+      val appliedMethod = methodToAdd.typeSignatureIn(computeType(typedWrapper))
+      val parametersOfGenericType = findParametersOfType(appliedMethod.paramLists, itt.tpe)
 
-    if (invalidMethods.size > 0) {
-      val wrongMethods = invalidMethods.map { m =>
-        showDecl(m)
-      }.mkString(", ")
-      c.abort(c.enclosingPosition, s"Can generate call forwarders for methods with single parameter of type ${itt.tpe}. Wrong methods: ${wrongMethods}")
-    } else {
+      if (parametersOfGenericType.size != 1) {
+        c.abort(c.enclosingPosition, s"Can generate call forwarders for methods with single parameter of type ${itt.tpe}. Wrong method: ${show(methodToAdd)}")
+      } else {
 
-      val newMethods = for {
-        methodToAdd <- methodsToImplement
-      } yield {
-        val appliedMethod = methodToAdd.typeSignatureIn(computeType(resultType))
-        val discriminator = findParametersOfType(appliedMethod.paramLists, itt.tpe).head
+        val discriminator = parametersOfGenericType.head
 
-        val vparamss: List[List[ValDef]] = appliedMethod.paramLists.map(_.map {
-          paramSymbol =>
-            ValDef(
-              Modifiers(Flag.PARAM, typeNames.EMPTY, List()),
-              paramSymbol.name.toTermName,
-              TypeTree(paramSymbol.typeSignature),
-              EmptyTree
-            )
+        val vparamss = appliedMethod.paramLists.map(_.map { paramSymbol =>
+          q"val ${paramSymbol.name.toTermName}:${paramSymbol.typeSignature}"
         })
-
-        val paramName = discriminator.name.toTermName
 
         val cases: Seq[c.Tree] = allSealed.map {
           case clazz: ClassSymbol =>
             val t = clazz.selfType
             val mt = tq"$wrapperType[$t]"
-
-            val callParameters = vparamss.map(_.map {
-              p =>
-                if (p.name == discriminator.name)
-                  q"a.asInstanceOf[$t]"
-                else q"${p.name}"
-
+            val callParameters = appliedMethod.paramLists.map(_.map { p =>
+              if (p.name == discriminator.name) q"a.asInstanceOf[$t]" else q"${p.name.toTermName}"
             })
             cq"a : $t => implicitly[$mt].${methodToAdd.name}(...$callParameters)"
         }
 
-        val delegateInvocation =
-          q""" $paramName match {
-               case ..$cases
-             }
-          """
-
-        DefDef(
-          Modifiers(),
-          methodToAdd.name,
-          List(), // TODO - type parameters
-          vparamss,
-          TypeTree(methodToAdd.returnType),
-          delegateInvocation
-        )
-      }
-
-      val tree =
         q"""
-      new $resultType {
+          def ${methodToAdd.name}(...$vparamss) = ${discriminator.name.toTermName} match {
+            case ..$cases
+          }
+        """
+      }
+    }
+
+    val tree =
+      q"""
+      new $typedWrapper {
         ..$newMethods
       }
       """
 
-      c.Expr[M[I]](tree)
-    }
+    c.Expr[M[I]](tree)
+
   }
 }
