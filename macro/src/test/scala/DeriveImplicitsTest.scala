@@ -76,25 +76,80 @@ class DeriveImplicitsTest extends FunSuite with Matchers {
     """.stripMargin should compile
   }
 
-  test("It works for method returning sealed type too") {
-    pendingUntilFixed {
-
-      """
-        |  import explicitImplicits._
-        |
-        |  sealed trait H
-        |  case class H1(name: String) extends H
-        |
-        |  trait JsonFormat[T] {
-        |    def read(json:String): T
-        |  }
-        |  implicit val h1Writer = new JsonFormat[H1] {
-        |    override def read(json:String): T = H1(json)
-        |  }
-        |
-        |  val jsonFormat: JsonFormat[H] = deriveImplicits[H, JsonFormat]
-        |
-      """.stripMargin should compile
-    }
+  test("It works when method has single T parameter and other not T dependant parameters") {
+    """
+      |  import explicitImplicits._
+      |
+      |  sealed trait H
+      |  case class H1(name: String) extends H
+      |
+      |  trait JsonFormat[T] {
+      |    def write(h:T, prettyPrint: Boolean): String
+      |  }
+      |  implicit val h1Writer = new JsonFormat[H1] {
+      |    override def write(h:H1, prettyPrint:Boolean): String = h.name
+      |  }
+      |
+      |  val jsonFormat: JsonFormat[H] = deriveImplicits[H, JsonFormat]
+      |
+    """.stripMargin should compile
   }
+
+  test("It works when method has single T parameter multiple parameter lists") {
+    """
+      |  import explicitImplicits._
+      |
+      |  sealed trait H
+      |  case class H1(name: String) extends H
+      |
+      |  trait JsonFormat[T] {
+      |    def write(h:T)(prettyPrint: Boolean): String
+      |  }
+      |  implicit val h1Writer = new JsonFormat[H1] {
+      |    override def write(h:H1)(prettyPrint:Boolean): String = h.name
+      |  }
+      |
+      |  val jsonFormat: JsonFormat[H] = deriveImplicits[H, JsonFormat]
+      |
+    """.stripMargin should compile
+  }
+
+  test("It works when T parameter is not first parameter") {
+    """
+      |  import explicitImplicits._
+      |
+      |  sealed trait H
+      |  case class H1(name: String) extends H
+      |
+      |  trait JsonFormat[T] {
+      |    def write(i:Int, h:T): String
+      |  }
+      |  implicit val h1Writer = new JsonFormat[H1] {
+      |    override def write(i:Int, h:H1): String = h.name
+      |  }
+      |
+      |  val jsonFormat: JsonFormat[H] = deriveImplicits[H, JsonFormat]
+      |
+    """.stripMargin should compile
+  }
+
+  test("It works when T parameter is not in first parameters list") {
+    """
+      |  import explicitImplicits._
+      |
+      |  sealed trait H
+      |  case class H1(name: String) extends H
+      |
+      |  trait JsonFormat[T] {
+      |    def write(i:Int)(h:T): String
+      |  }
+      |  implicit val h1Writer = new JsonFormat[H1] {
+      |    override def write(i:Int)(h:H1): String = h.name
+      |  }
+      |
+      |  val jsonFormat: JsonFormat[H] = deriveImplicits[H, JsonFormat]
+      |
+    """.stripMargin should compile
+  }
+
 }

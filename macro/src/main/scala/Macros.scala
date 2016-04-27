@@ -62,6 +62,14 @@ package object explicitImplicits {
       symbol.asClass.knownDirectSubclasses.toList ::: siblingSubclasses
     }
 
+    def findParametersOfType(paramLists: List[List[c.universe.Symbol]], expectedType: c.Type) = {
+      paramLists.flatMap { paramList =>
+        paramList.filter { param =>
+          param.typeSignature =:= expectedType
+        }
+      }
+    }
+
     val itemType = c.weakTypeOf[I].typeSymbol.asClass
     val wrapperType = c.weakTypeOf[M[I]].typeSymbol.asClass
     val resultType = tq"$wrapperType[$itemType]"
@@ -72,61 +80,75 @@ package object explicitImplicits {
     }
 
     val invalidMethods = methodsToImplement.filterNot { m =>
-      m.paramLists.size == 1 && m.paramLists.head.size == 1 &&
-        m.typeSignatureIn(computeType(resultType)).paramLists.head.head.typeSignature =:= itt.tpe
+      val applied = m.typeSignatureIn(computeType(resultType))
+      val genericParameters = findParametersOfType(applied.paramLists, itt.tpe)
+      genericParameters.size == 1
     }
 
     if (invalidMethods.size > 0) {
       val wrongMethods = invalidMethods.map { m =>
         showDecl(m)
       }.mkString(", ")
-      c.abort(c.enclosingPosition, s"Can generate call forwarders only for methods with exactly single parameter of type ${itt.tpe}. Wrong methods: ${wrongMethods}")
-    }
+      c.abort(c.enclosingPosition, s"Can generate call forwarders for methods with single parameter of type ${itt.tpe}. Wrong methods: ${wrongMethods}")
+    } else {
 
-    val newMethods = for {
-      methodToAdd <- methodsToImplement
-    } yield {
-      val appliedMethod = methodToAdd.typeSignatureIn(computeType(resultType))
+      val newMethods = for {
+        methodToAdd <- methodsToImplement
+      } yield {
+        val appliedMethod = methodToAdd.typeSignatureIn(computeType(resultType))
+        val discriminator = findParametersOfType(appliedMethod.paramLists, itt.tpe).head
 
-      val vparamss = appliedMethod.paramLists.map(_.map {
-        paramSymbol => ValDef(
-          Modifiers(Flag.PARAM, typeNames.EMPTY, List()),
-          paramSymbol.name.toTermName,
-          TypeTree(paramSymbol.typeSignature),
-          EmptyTree)
-      })
+        val vparamss: List[List[ValDef]] = appliedMethod.paramLists.map(_.map {
+          paramSymbol =>
+            ValDef(
+              Modifiers(Flag.PARAM, typeNames.EMPTY, List()),
+              paramSymbol.name.toTermName,
+              TypeTree(paramSymbol.typeSignature),
+              EmptyTree
+            )
+        })
 
-      val paramName = vparamss.head.head.name
+        val paramName = discriminator.name.toTermName
 
-      val cases: Seq[c.Tree] = allSealed.map {
-        case clazz: ClassSymbol =>
-          val t = clazz.selfType
-          val mt = tq"$wrapperType[$t]"
-          cq"a : $t => implicitly[$mt].${methodToAdd.name}(a.asInstanceOf[$t])"
-      }
+        val cases: Seq[c.Tree] = allSealed.map {
+          case clazz: ClassSymbol =>
+            val t = clazz.selfType
+            val mt = tq"$wrapperType[$t]"
 
-      val delegateInvocation =
-        q""" $paramName match {
+            val callParameters = vparamss.map(_.map {
+              p =>
+                if (p.name == discriminator.name)
+                  q"a.asInstanceOf[$t]"
+                else q"${p.name}"
+
+            })
+            cq"a : $t => implicitly[$mt].${methodToAdd.name}(...$callParameters)"
+        }
+
+        val delegateInvocation =
+          q""" $paramName match {
                case ..$cases
              }
           """
 
-      DefDef(Modifiers(),
-        methodToAdd.name,
-        List(), // TODO - type parameters
-        vparamss,
-        TypeTree(methodToAdd.returnType),
-        delegateInvocation)
-    }
+        DefDef(
+          Modifiers(),
+          methodToAdd.name,
+          List(), // TODO - type parameters
+          vparamss,
+          TypeTree(methodToAdd.returnType),
+          delegateInvocation
+        )
+      }
 
-
-    val tree =
-      q"""
+      val tree =
+        q"""
       new $resultType {
         ..$newMethods
       }
       """
 
-    c.Expr[M[I]](tree)
+      c.Expr[M[I]](tree)
+    }
   }
 }
