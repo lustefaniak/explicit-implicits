@@ -41,25 +41,35 @@ package object explicitImplicits {
     }
     // ... until here
 
-    def childrenFor[A: c.WeakTypeTag]: List[c.universe.Symbol] = {
+    // From https://github.com/ochrons/boopickle
+    def findConcreteTypes(tpe: c.universe.Type): Seq[c.universe.ClassSymbol] = {
 
-      val symbol = weakTypeOf[A].typeSymbol
-
-      if ((!symbol.isClass) || (!symbol.asClass.isSealed)) c.abort(
-        c.enclosingPosition,
-        "Can only enumerate values of a sealed trait or class."
-      )
-
-      val siblingSubclasses: List[Symbol] = scala.util.Try {
-        val enclosingModule = c.enclosingClass.asInstanceOf[ModuleDef]
-        enclosingModule.impl.body.filter { x =>
-          scala.util.Try(x.symbol.asModule.moduleClass.asClass.baseClasses.contains(symbol)).getOrElse(false)
-        }.map(_.symbol)
-      } getOrElse {
-        List()
+      val sym = tpe.typeSymbol.asClass
+      // must be a sealed trait
+      if (!sym.isSealed) {
+        val msg = s"The referenced trait ${sym.name} must be sealed"
+        c.abort(c.enclosingPosition, msg)
       }
 
-      symbol.asClass.knownDirectSubclasses.toList ::: siblingSubclasses
+      if (sym.knownDirectSubclasses.isEmpty) {
+        val msg = s"The referenced trait ${sym.name} does not have any sub-classes. This may " +
+          "happen due to a limitation of scalac (SI-7046) given that the trait is " +
+          "not in the same package."
+        c.abort(c.enclosingPosition, msg)
+      }
+
+      // find all implementation classes in the trait hierarchy
+      def findSubClasses(p: c.universe.ClassSymbol): Set[c.universe.ClassSymbol] = {
+        p.knownDirectSubclasses.flatMap { sub =>
+          val subClass = sub.asClass
+          if (subClass.isTrait)
+            findSubClasses(subClass)
+          else
+            Set(subClass) ++ findSubClasses(subClass)
+        }
+      }
+      // sort class names to make sure they are always in the same order
+      findSubClasses(sym).toSeq.sortBy(_.name.toString)
     }
 
     def findParametersOfType(paramLists: List[List[c.universe.Symbol]], expectedType: c.Type) = {
@@ -74,7 +84,7 @@ package object explicitImplicits {
     val wrapperType = c.weakTypeOf[M[I]].typeSymbol.asClass
     val typedWrapper = tq"$wrapperType[$innerType]"
 
-    val allSealed = childrenFor[I]
+    val allSealed = findConcreteTypes(itt.tpe)
     val methodsToImplement = mtt.tpe.members.filter(m => m.isMethod && m.isAbstract).map(_.asMethod)
 
     val newMethods = methodsToImplement.map { methodToAdd =>
