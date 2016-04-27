@@ -57,21 +57,20 @@ object SecondAccessoryFor1Cent {
   }
 }
 
-
 object Main extends App {
 
   val standardPricer: Pricer[Product] = {
     import explicitImplicits._
     import StandardPrices.phonePricer
     import StandardPrices.accessoryPricer
-    deriveImplicits[Product, Pricer]
+    deriveFromImplicits[Product, Pricer]
   }
 
   val promotionalPricer: Pricer[Product] = {
     import explicitImplicits._
     import StandardPrices.phonePricer
     import SecondAccessoryFor1Cent.accessoryPricer
-    deriveImplicits[Product, Pricer]
+    deriveFromImplicits[Product, Pricer]
   }
 
   val shoppingCart: Map[Product, Int] = Map(
@@ -79,10 +78,10 @@ object Main extends App {
     Accessory("Qi charger", 30) -> 3
   )
 
-  val standardCartValue = shoppingCart.map(standardPricer.calculatePrice _ tupled)
-  val promotionalCartValue = shoppingCart.map(promotionalPricer.calculatePrice _ tupled)
+  val standardCartValues = shoppingCart.map(standardPricer.calculatePrice _ tupled)
+  // standardCartValues: collection.immutable.Iterable[BigDecimal] = List(100.0, 90)
+  val promotionalCartValues = shoppingCart.map(promotionalPricer.calculatePrice _ tupled)
+  // promotionalCartValues: collection.immutable.Iterable[BigDecimal] = List(100.0, 60.01)
 
-  assert(standardCartValue == List[BigDecimal](100, 90))
-  assert(promotionalCartValue == List[BigDecimal](100, 60.01))
 }
 ```

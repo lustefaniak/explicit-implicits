@@ -23,7 +23,7 @@ class DeriveImplicitsUsageTest extends FunSuite with Matchers {
     val h1 = H1("name")
     val h2 = H2("otherName")
 
-    val jsonFormat: JsonFormat[H] = deriveImplicits[H, JsonFormat]
+    val jsonFormat: JsonFormat[H] = deriveFromImplicits[H, JsonFormat]
 
     assert(jsonFormat.write(h1) === h1.name, "Writer should use implicit h1Writer")
     assert(jsonFormat.write(h2) === h2.otherName, "Writer should use implicit h2Writer")
@@ -48,7 +48,7 @@ class DeriveImplicitsUsageTest extends FunSuite with Matchers {
       override def write(t: H1): String = s"h1Writer-${t.name}"
     }
 
-    val jsonFormat: JsonFormat[H] = deriveImplicits[H, JsonFormat]
+    val jsonFormat: JsonFormat[H] = deriveFromImplicits[H, JsonFormat]
     val h: H = H1("test")
     val h2: H = H1("test2")
     jsonFormat.write(h) shouldBe "h1Writer-test"
@@ -69,7 +69,7 @@ class DeriveImplicitsUsageTest extends FunSuite with Matchers {
       override def write(h: H1, prettyPrint: Boolean): String = s"h1Writer-${h.name}-${prettyPrint}"
     }
 
-    val jsonFormat: JsonFormat[H] = deriveImplicits[H, JsonFormat]
+    val jsonFormat: JsonFormat[H] = deriveFromImplicits[H, JsonFormat]
 
     val h: H = H1("test")
     jsonFormat.write(h, true) shouldBe "h1Writer-test-true"
@@ -90,7 +90,7 @@ class DeriveImplicitsUsageTest extends FunSuite with Matchers {
       override def write(h: H1)(prettyPrint: Boolean): String = s"h1Writer-${h.name}-${prettyPrint}"
     }
 
-    val jsonFormat: JsonFormat[H] = deriveImplicits[H, JsonFormat]
+    val jsonFormat: JsonFormat[H] = deriveFromImplicits[H, JsonFormat]
     val h: H = H1("test")
     jsonFormat.write(h)(true) shouldBe "h1Writer-test-true"
     jsonFormat.write(h)(false) shouldBe "h1Writer-test-false"
@@ -110,7 +110,7 @@ class DeriveImplicitsUsageTest extends FunSuite with Matchers {
       override def write(i: Int, h: H1): String = s"h1Writer-$i-${h.name}"
     }
 
-    val jsonFormat: JsonFormat[H] = deriveImplicits[H, JsonFormat]
+    val jsonFormat: JsonFormat[H] = deriveFromImplicits[H, JsonFormat]
     val h: H = H1("test")
     val h2: H = H1("test2")
     jsonFormat.write(1, h) shouldBe "h1Writer-1-test"
@@ -130,7 +130,7 @@ class DeriveImplicitsUsageTest extends FunSuite with Matchers {
       override def write(i: Int)(h: H1): String = s"h1Writer-$i-${h.name}"
     }
 
-    val jsonFormat: JsonFormat[H] = deriveImplicits[H, JsonFormat]
+    val jsonFormat: JsonFormat[H] = deriveFromImplicits[H, JsonFormat]
     val h: H = H1("test")
     val h2: H = H1("test2")
     jsonFormat.write(1)(h) shouldBe "h1Writer-1-test"

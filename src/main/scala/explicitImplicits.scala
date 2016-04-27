@@ -4,10 +4,10 @@ import scala.language.experimental.macros
 import scala.reflect.macros.blackbox.Context
 
 package object explicitImplicits {
-  def deriveImplicits[I, M[_]]: M[I] = macro deriveImplicits_impl[I, M]
+  def deriveFromImplicits[I, M[_]]: M[I] = macro deriveFromImplicits_impl[I, M]
 
   @compileTimeOnly("This could be used only as a macro")
-  def deriveImplicits_impl[I, M[I]](c: Context)(implicit itt: c.WeakTypeTag[I], mtt: c.WeakTypeTag[M[I]]): c.Expr[M[I]] = {
+  def deriveFromImplicits_impl[I, M[I]](c: Context)(implicit itt: c.WeakTypeTag[I], mtt: c.WeakTypeTag[M[I]]): c.Expr[M[I]] = {
     import c.universe._
 
     // From MacWire ...
